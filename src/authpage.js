@@ -106,16 +106,12 @@ useEffect(() => {
    <ToastContainer containerId="authPage"/>
 
    <div className='w-full mx-auto lg:w-[98%] mt-[20px] p-[30px] bg-[#2cac4f] min-h-[95vh] lg:min-h-[95vh] flex justify-center items-center'>
-   <ins
-        ref={adRef}
-        className="adsbygoogle"
-        style={{ display: 'block',width:'100%',height:'100%'}}
-        data-ad-client="ca-pub-3780432206906063"
-        data-ad-slot="7789922698"
-        data-ad-format="auto"
-        title="ads"
-        data-full-width-responsive="true"
-      ></ins>
+   <ins class="adsbygoogle"
+     style={{display:'block',width:'100%',height:'100%'}}
+     data-ad-client="ca-pub-3780432206906063"
+     data-ad-slot="9178191838"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
     </div>
    </>
   );
