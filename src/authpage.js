@@ -5,7 +5,8 @@ import { useDiscordLogin, UseDiscordLoginParams } from 'react-discord-login';
 import axios from 'axios'
 import { Link, useNavigate } from 'react-router-dom';
 import { BASE_URL } from './baseurl';
-import {useRef} from 'react'  
+import {useRef,useEffect} from 'react'  
+
 
 
 const AuthPage = () => {
