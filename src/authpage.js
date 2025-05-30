@@ -162,18 +162,12 @@ const AuthPage = () => {
             className="ad-container bg-gray-100 rounded-lg overflow-hidden"
             style={{ minHeight: '250px' }}
           >
-            <ins
-              className="adsbygoogle"
-              style={{
-                display: 'block',
-                width: '100%',
-                height: '250px'
-              }}
-              data-ad-client="ca-pub-3780432206906063"
-              data-ad-slot="9178191838"
-              data-ad-format="auto"
-              data-full-width-responsive="true"
-            />
+           <ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-3780432206906063"
+     data-ad-slot="9178191838"
+     data-ad-format="auto">
+</ins>
           </div>
           
           {/* Ad loading indicator */}
