@@ -1,47 +1,38 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { ToastContainer, toast } from 'react-toastify';
 import { useDiscordLogin } from 'react-discord-login';
 import axios from 'axios';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { BASE_URL } from './baseurl';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
   const [adLoaded, setAdLoaded] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState('');
   const adRef = useRef(null);
   const navigate = useNavigate();
 
+  // Set current URL safely after component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentUrl(window.location.href);
+    }
+  }, []);
+
   const { getRootProps, getInputProps } = useDropzone({
-    accept: 'image/*',
-    onDrop: (acceptedFiles) => {
-      setSelectedImage(URL.createObjectURL(acceptedFiles[0]));
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif']
     },
+    onDrop: useCallback((acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        setSelectedImage(URL.createObjectURL(acceptedFiles[0]));
+      }
+    }, []),
   });
 
-  const discordLoginParams = {
-    clientId: '1353009606363709480',
-    redirectUri: 'https://cardgamefrontend-xtuk.vercel.app/signin',
-    responseType: 'token',
-    scopes: ['identify', 'email'],
-    onSuccess: response => {
-      console.log('Discord login success:', response);
-      const avatar = `https://cdn.discordapp.com/avatars/${response.user.id}/${response.avatar}.png`;
-      const data = {
-        userName: response.user.username,
-        avatar,
-        email: response.user.email
-      };
-      authenticate(data, true);
-    },
-    onFailure: error => {
-      console.error('Discord login failed:', error);
-      toast.error('Discord login failed. Please try again.', { containerId: 'authPage' });
-    },
-  };
-
-  const authenticate = async (data, login) => {
+  const authenticate = useCallback(async (data, login) => {
     console.log('Authenticating with data:', data);
     try {
       if (login) {
@@ -49,7 +40,6 @@ const AuthPage = () => {
         toast.success(res.data.message, { containerId: 'authPage' });
         console.log('Login response:', res);
         localStorage.setItem('token', res.data.token);
-        // Use navigate instead of window.location.href for better React routing
         navigate('/');
       } else {
         const res = await axios.post(`${BASE_URL}/register`, data);
@@ -63,19 +53,61 @@ const AuthPage = () => {
         toast.error('Something went wrong. Please try again.', { containerId: 'authPage' });
       }
     }
+  }, [navigate]);
+
+  const discordLoginParams = {
+    clientId: '1353009606363709480',
+    redirectUri: 'https://cardgamefrontend-xtuk.vercel.app/signin',
+    responseType: 'token',
+    scopes: ['identify', 'email'],
+    onSuccess: (response) => {
+      console.log('Discord login success:', response);
+      const avatar = `https://cdn.discordapp.com/avatars/${response.user.id}/${response.avatar}.png`;
+      const data = {
+        userName: response.user.username,
+        avatar,
+        email: response.user.email
+      };
+      authenticate(data, true);
+    },
+    onFailure: (error) => {
+      console.error('Discord login failed:', error);
+      toast.error('Discord login failed. Please try again.', { containerId: 'authPage' });
+    },
   };
 
-  const { buildUrl, isLoading } = useDiscordLogin(discordLoginParams);
+  const discordLogin = useDiscordLogin(discordLoginParams);
 
-  // Function to load AdSense ads
-  const loadAds = () => {
+  // Function to load AdSense ads with better error handling
+  const loadAds = useCallback(() => {
     try {
       // Check if adsbygoogle is available
       if (typeof window !== 'undefined' && window.adsbygoogle) {
-        // Push ad configuration
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-        setAdLoaded(true);
-        console.log('AdSense ad loaded successfully');
+        // Check if ad container exists and is visible
+        if (adRef.current) {
+          console.log('Loading AdSense ad...');
+          console.log('Ad container dimensions:', {
+            width: adRef.current.offsetWidth,
+            height: adRef.current.offsetHeight,
+            visible: adRef.current.offsetParent !== null
+          });
+          
+          // Push ad configuration
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          setAdLoaded(true);
+          console.log('AdSense ad loaded successfully');
+          
+          // Listen for ad load events
+          setTimeout(() => {
+            const adElements = document.querySelectorAll('ins.adsbygoogle');
+            adElements.forEach((ad, index) => {
+              console.log(`Ad ${index} status:`, {
+                'data-adsbygoogle-status': ad.getAttribute('data-adsbygoogle-status'),
+                'data-ad-status': ad.getAttribute('data-ad-status')
+              });
+            });
+          }, 3000);
+        }
       } else {
         console.warn('AdSense script not loaded yet');
         // Retry after a short delay
@@ -83,12 +115,20 @@ const AuthPage = () => {
       }
     } catch (error) {
       console.error('Error loading AdSense ads:', error);
+      // Log more details about the error
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        adContainer: adRef.current ? 'exists' : 'missing'
+      });
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Load AdSense script if not already loaded
     const loadAdSenseScript = () => {
+      if (typeof window === 'undefined') return;
+      
       if (!document.querySelector('script[src*="adsbygoogle"]')) {
         const script = document.createElement('script');
         script.async = true;
@@ -113,6 +153,16 @@ const AuthPage = () => {
     };
 
     loadAdSenseScript();
+  }, [loadAds]);
+
+  const handleDiscordLogin = useCallback(() => {
+    if (discordLogin.buildUrl && !discordLogin.isLoading) {
+      window.open(discordLogin.buildUrl(), '_self');
+    }
+  }, [discordLogin.buildUrl, discordLogin.isLoading]);
+
+  const toggleLoginMode = useCallback(() => {
+    setIsLogin(prev => !prev);
   }, []);
 
   return (
@@ -129,11 +179,11 @@ const AuthPage = () => {
           
           {/* Discord Login Button */}
           <button
-            onClick={() => window.open(buildUrl(), '_self')}
-            disabled={isLoading}
-            className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 mb-4"
+            onClick={handleDiscordLogin}
+            disabled={discordLogin.isLoading}
+            className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? (
+            {discordLogin.isLoading ? (
               <span>Loading...</span>
             ) : (
               <>
@@ -147,7 +197,7 @@ const AuthPage = () => {
           
           <div className="text-center">
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={toggleLoginMode}
               className="text-[#2cac4f] hover:underline text-sm"
             >
               {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
@@ -155,25 +205,45 @@ const AuthPage = () => {
           </div>
         </div>
 
-        {/* AdSense Ad Container */}
+        {/* AdSense Ad Container with debugging info */}
         <div className="w-full max-w-4xl">
+          <div className="text-center text-white text-sm mb-2">
+            Advertisement
+          </div>
           <div 
             ref={adRef}
-            className="ad-container bg-gray-100 rounded-lg overflow-hidden"
-            style={{ minHeight: '250px' }}
+            className="ad-container bg-gray-100 rounded-lg overflow-hidden border"
+            style={{ minHeight: '250px', maxWidth: '100%' }}
           >
-           <ins class="adsbygoogle"
-     style="display:block"
-     data-ad-client="ca-pub-3780432206906063"
-     data-ad-slot="9178191838"
-     data-ad-format="auto">
-</ins>
+            <ins
+              className="adsbygoogle"
+              style={{
+                display: 'block',
+                width: '100%',
+                height: '250px',
+                backgroundColor: '#f0f0f0'
+              }}
+              data-ad-client="ca-pub-3780432206906063"
+              data-ad-slot="9178191838"
+              data-ad-format="rectangle"
+              data-ad-layout="in-article"
+              data-full-width-responsive="false"
+            />
           </div>
           
-          {/* Ad loading indicator */}
-          {!adLoaded && (
-            <div className="text-center mt-4 text-white text-sm">
-              Loading advertisement...
+          {/* Ad loading/error indicator */}
+          <div className="text-center mt-2 text-white text-xs">
+            {!adLoaded ? (
+              <span>Loading advertisement...</span>
+            ) : (
+              <span>Ad loaded - Check browser console for status</span>
+            )}
+          </div>
+          
+          {/* Debug info */}
+          {currentUrl && (
+            <div className="text-center mt-2 text-white text-xs opacity-75">
+              Current URL: {currentUrl}
             </div>
           )}
         </div>
