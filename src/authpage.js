@@ -75,30 +75,11 @@ const { buildUrl, isLoading } = useDiscordLogin(discordLoginParams);
 
 
 useEffect(() => { 
-  const loadAd = () => {
-    try {
-      if (window.adsbygoogle && !adRef.current?.hasAttribute('data-adsbygoogle-status')) {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      }
-    } catch (e) {
-      console.error('AdSense error:', e);
-    }
-  };
-  
+  try{
+    (adsbygoogle = window.adsbygoogle || []).push({});
+  }catch(e){
 
-  const script = document.createElement('script');
-  script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3780432206906063';
-  script.async = true;
-  script.crossOrigin = 'anonymous';
-  script.onload = loadAd;
-  
-  document.head.appendChild(script);
-  
-  return () => {
-    if (document.head.contains(script)) {
-      document.head.removeChild(script);
-    }
-  };
+  }
 }, []);
 
   return (
