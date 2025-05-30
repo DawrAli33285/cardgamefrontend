@@ -112,7 +112,9 @@ useEffect(() => {
         style={{ display: 'block',width:'100%',height:'100%'}}
         data-ad-client="ca-pub-3780432206906063"
         data-ad-slot="7789922698"
+        data-ad-format="auto"
         title="ads"
+        data-full-width-responsive="true"
       ></ins>
     </div>
    </>
