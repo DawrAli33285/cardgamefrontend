@@ -3,11 +3,18 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 import AuthPage from './authpage';
 import { HMSRoomProvider } from "@100mslive/react-sdk";
 import ProfilePage from './profile';
+import {loadStripe} from '@stripe/stripe-js';
 import RegistrationPage from './registrationpage';
+import {
+  PaymentElement,
+  Elements,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js';
 import { Buffer } from 'buffer';
 import process from 'process';
 import Middleware from './middleware';
@@ -17,74 +24,83 @@ import MatchmakingPage from './matchSearch';
 import CardGame from './cardGame';
 import Subscribe from './subscribe';
 import Watchgame from './watchgame';
+import RemoveToken from './components/removeToken';
+import AnnouncementsPage from './Announcement';
+
+const stripePromise = loadStripe('pk_test_51OwuO4LcfLzcwwOYdssgGfUSfOgWT1LwO6ewi3CEPewY7WEL9ATqH6WJm3oAcLDA3IgUvVYLVEBMIEu0d8fUwhlw009JwzEYmV');
 
 window.process = process;
 window.Buffer = Buffer;
 
+
+const RootLayout = () => {
+  return (
+    <Elements stripe={stripePromise}>
+      <SocketProvider>
+        <HMSRoomProvider>
+          <Outlet />
+        </HMSRoomProvider>
+      </SocketProvider>
+    </Elements>
+  );
+};
+
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <Middleware/>,
-    children:[
+    element: <RootLayout />,
+    children: [
       {
         path: '/',
-        element: <App />  
+        element: <Middleware/>,
+        children:[
+          {
+            path: '/',
+            element: <App />  
+          },
+          {
+            path:'/match',
+            element:<MatchmakingPage/>
+          },
+          {
+            path:'/subscribe',
+            element:<Subscribe/>
+          },
+          {
+            path:'/profile',
+            element:<ProfilePage />
+          }
+        ]
       },
-    ]
-  
-  },
-  {
- path:'/match',
- element:<MatchmakingPage/>
-
-  },
-  {
-    path:'/signin',
-    element:<AuthPage />
-  },
-  {
-    path:'/cardgame',
-    element:<CardGame />
-  },
-  {
-path:'/subscribe',
-element:<Subscribe/>
-  },
-  {
-path:'/watchgame',
-element:<Watchgame/>
-  },
-  {
-    path:"/livegame",
-    element:<LiveGame />
-  },
-  {
-path:'/signup',
-element:<RegistrationPage/>
-  },
-  {
-    path:'/',
-    element:<Middleware/>,
-    children:[
       {
-        path:'/profile',
-        element:<ProfilePage />
-      }
+        path:'/signin',
+        element:<AuthPage/>
+      },
+      {
+        path:'/announcements',
+        element:<AnnouncementsPage/>
+      },
+      {
+        path:'/cardgame',
+        element:<CardGame />
+      },
+      {
+        path:'/watchgame',
+        element:<Watchgame/>
+      },
+      {
+        path:"/livegame",
+        element:<LiveGame />
+      },
+      {
+        path:'/signup',
+        element:<RegistrationPage/>
+      },
     ]
   }
 ]);
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  
-   <SocketProvider>
-      <HMSRoomProvider>
-   <RouterProvider router={router} />
-      </HMSRoomProvider>
-   </SocketProvider>
+root.render(<RouterProvider router={router} />);
 
-);
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();

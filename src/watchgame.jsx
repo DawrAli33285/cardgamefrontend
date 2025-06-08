@@ -15,8 +15,11 @@ export default function Watchgame() {
      const peers = useHMSStore(selectPeers);
     const [leftOpen, setLeftOpen] = useState(false);
     const [rightOpen, setRightOpen] = useState(false);
+    const [matchSettings,setMatchSettings]=useState()
     const [data,setData]=useState([])
-    const {socketRef,profile}=useContext(socketContext)
+    const {socketRef,profile,socket}=useContext(socketContext)
+    
+const [isDelaying, setIsDelaying] = useState(false);
     const [spectatorMessages,setSpectatorMessages]=useState([])
     const [rightMessage,setRightMessage]=useState("")
     const location=useLocation();
@@ -24,8 +27,16 @@ export default function Watchgame() {
     const notifications = useHMSNotifications();
 
 useEffect(()=>{
-if(profile){
+    let token=localStorage.getItem('token')
+    let params=new URLSearchParams(location.search)
+    let socketId=params.get('playerOne')
+if(profile && token){
+   
+  socket?.emit("addUserAsSpectator",socketId)
     joinRoom();
+}else{
+socket?.emit("addUserAsSpectator",socketId)
+joinRoomAsSpectator();
 }
 },[profile])
 useEffect(() => {
@@ -34,6 +45,22 @@ useEffect(() => {
     };
   }, [hmsActions]);
 
+const joinRoomAsSpectator=async()=>{
+    try{
+        let params=new URLSearchParams(location.search)
+        let liveStreamRoomId=params.get('liveStreamRoomId')
+        console.log("liveStreamRoomId")
+        console.log(liveStreamRoomId)
+        let response=await axios.get(`${BASE_URL}/getCodeAndToken/${liveStreamRoomId}/viewer-realtime`)
+        let authToken=response.data.token
+        console.log('authToken')
+        console.log(authToken)
+        await hmsActions.join({ userName:'Spectator', authToken:authToken});
+    }catch(e){
+        console.log(e.message)
+        console.log("JOINROOM ERROR")
+    }
+}
 
 useEffect(() => {
     if (notifications?.type === 'PEER_LEFT') {
@@ -49,19 +76,30 @@ useEffect(() => {
 
 
 const sendMessage=async()=>{
-    try{
-        let params=new URLSearchParams(location.search)
-        let socketId=params.get('playerOne')
-        let data={
-            ...profile,
-            message:rightMessage,
-            socketId
-
-        }
-        socketRef?.current?.emit("sendSpectatorMessage",data)
-       setRightMessage("")
-    }catch(e){
+    if (isDelaying || !rightMessage.trim()) return;
     
+    setIsDelaying(true);
+    
+    try {
+        let params = new URLSearchParams(location.search);
+        let socketId = params.get('playerOne');
+        let data = {
+            ...profile,
+            message: rightMessage,
+            socketId,
+            profile
+        };
+        socketRef?.current?.emit("sendSpectatorMessage", data);
+        setRightMessage("");
+        
+      
+        setTimeout(() => {
+            setIsDelaying(false);
+        }, matchSettings?.spectator_chat_delay || 0);
+        
+    } catch (e) {
+       
+        setIsDelaying(false);
     }
     }
 
@@ -69,6 +107,12 @@ const sendMessage=async()=>{
 useEffect(()=>{
 if(socketRef?.current){
     console.log("SOCKET WORKING")
+    socketRef?.current?.on("updatedSpectatorInteractionControls",(data)=>{
+        setMatchSettings((prev)=>{
+            let old=prev;
+            return {data}
+        })
+    })
     socketRef?.current?.on("sendSpectatorMessage",(data)=>{
         setSpectatorMessages((prev)=>{
             let old=[...prev]
@@ -96,6 +140,19 @@ setMessages((prev)=>{
     })
 }
 },[socketRef?.current])
+
+useEffect(()=>{
+getMatchSettings();
+},[])
+
+const getMatchSettings=async()=>{
+try{
+    let response=await axios.get(`${BASE_URL}/getMatchSettings`)
+    setMatchSettings(response.data.settings)
+}catch(e){
+
+}
+}
 
 
 const joinRoom=async()=>{
@@ -179,20 +236,34 @@ console.log("JOINROOM ERROR")
                         ))}
                     </div>
 
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            className="flex-1 bg-gray-800 text-white p-2 rounded"
-                            placeholder="Type message..."
-                            value={rightMessage}
-                            onChange={(e)=>{
-                                setRightMessage(e.target.value)
-                            }}
-                        />
-                        <button onClick={sendMessage} className="bg-green-500 text-white px-4 py-2 rounded">
-                            Send
-                        </button>
-                    </div>
+                   {localStorage.getItem('token')? <div className="flex gap-2">
+                    <input
+            type="text"
+            disabled={profile?.status=="Muted"?true:profile?.status=="Banned"?true:false}
+            className="flex-1 bg-gray-800 text-white p-2 rounded"
+            placeholder="Type message..."
+            value={rightMessage}
+            onChange={(e) => {
+                setRightMessage(e.target.value)
+            }}
+            onKeyPress={(e) => {
+                if (e.key === 'Enter' && !isDelaying) {
+                  sendMessage();
+                }
+            }}
+        />
+        <button 
+            onClick={sendMessage} 
+            disabled={isDelaying}
+            className={`px-4 py-2 rounded text-white ${
+                isDelaying 
+                    ? 'bg-gray-500 cursor-not-allowed' 
+                    : 'bg-green-500 hover:bg-green-600'
+            }`}
+        >
+            {isDelaying ? 'Wait...' : 'Send'}
+        </button>
+                    </div>:''}
                 </div>
             </div>
 

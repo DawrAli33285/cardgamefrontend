@@ -2,6 +2,8 @@ import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import { socketContext } from './socketContext';
+import { BASE_URL } from './baseurl';
+import axios from 'axios';
 
 const MatchmakingPage = () => {
   const [status, setStatus] = useState('queuing');
@@ -9,6 +11,7 @@ const MatchmakingPage = () => {
   const [timer, setTimer] = useState(30);
   const [matchAccepted, setMatchAccepted] = useState(false);
   const {socketRef,profile}=useContext(socketContext)
+  const [matchSettings,setMatchSettings]=useState()
   const navigate=useNavigate()
   const location=useLocation();
 
@@ -56,13 +59,17 @@ console.log(data)
         let params=new URLSearchParams(location.search)
         let tch=params.get('tch')
         let mode=params.get('mode')
+        console.log("PROFILE")
+        console.log(profile)
         let data={
             tch,
             mode,
             rank:profile?.rank,
             email:profile?.email,
             avatar:profile?.avatar,
-            userName:profile?.userName
+            userName:profile?.userName,
+            _id:profile?._id,
+           cancelled:profile?.subscription?.cancelled
         }
       socketRef?.current.emit("findMatch",data)  
       } 
@@ -102,6 +109,23 @@ socketRef?.current?.on("acceptedByBothPlayers",()=>{
 })
    
   };
+
+  useEffect(()=>{
+getAdminSettings();
+  },[])
+
+
+
+
+  const getAdminSettings=async()=>{
+    try{
+let response=await axios.get(`${BASE_URL}/getMatchSettings`)
+setMatchSettings(response.data.settings)
+setTimer(response.data.settings.lobbyTimer)
+    }catch(e){
+
+    }
+  }
 
 
   
